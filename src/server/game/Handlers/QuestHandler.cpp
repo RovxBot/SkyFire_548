@@ -942,14 +942,6 @@ void WorldSession::SendQuestgiverStatusMultiple()
     if (!_player || isLogingOut())
         return;
 
-    uint32 count = 0;
-    ByteBuffer byteData;
-
-    WorldPacket data(SMSG_QUEST_GIVER_STATUS_MULTIPLE, 3 + count * (1 + 8 + 4));
-
-    size_t pos = data.bitwpos();
-    data.WriteBits(count, 21);      // placeholder
-
     for (Player::ClientGUIDs::const_iterator itr = _player->m_clientGUIDs.begin(); itr != _player->m_clientGUIDs.end(); ++itr)
     {
         uint32 questStatus = DIALOG_STATUS_NONE;
@@ -967,28 +959,7 @@ void WorldSession::SendQuestgiverStatusMultiple()
             if (questStatus > 6)
                 questStatus = getDialogStatus(_player, questgiver, defstatus);
 
-            ObjectGuid guid = questgiver->GetGUID();
-
-            data.WriteBit(guid[4]);
-            data.WriteBit(guid[0]);
-            data.WriteBit(guid[3]);
-            data.WriteBit(guid[6]);
-            data.WriteBit(guid[5]);
-            data.WriteBit(guid[7]);
-            data.WriteBit(guid[1]);
-            data.WriteBit(guid[2]);
-
-            byteData.WriteByteSeq(guid[6]);
-            byteData.WriteByteSeq(guid[2]);
-            byteData.WriteByteSeq(guid[7]);
-            byteData.WriteByteSeq(guid[5]);
-            byteData.WriteByteSeq(guid[4]);
-            byteData << uint32(questStatus);
-            byteData.WriteByteSeq(guid[1]);
-            byteData.WriteByteSeq(guid[3]);
-            byteData.WriteByteSeq(guid[0]);
-
-            ++count;
+            _player->PlayerTalkClass->SendQuestGiverStatus(questStatus, questgiver->GetGUID());
         }
         else if (IS_GAMEOBJECT_GUID(*itr))
         {
@@ -1001,36 +972,9 @@ void WorldSession::SendQuestgiverStatusMultiple()
             if (questStatus > 6)
                 questStatus = getDialogStatus(_player, questgiver, defstatus);
 
-            ObjectGuid guid = questgiver->GetGUID();
-
-            data.WriteBit(guid[4]);
-            data.WriteBit(guid[0]);
-            data.WriteBit(guid[3]);
-            data.WriteBit(guid[6]);
-            data.WriteBit(guid[5]);
-            data.WriteBit(guid[7]);
-            data.WriteBit(guid[1]);
-            data.WriteBit(guid[2]);
-
-            byteData.WriteByteSeq(guid[6]);
-            byteData.WriteByteSeq(guid[2]);
-            byteData.WriteByteSeq(guid[7]);
-            byteData.WriteByteSeq(guid[5]);
-            byteData.WriteByteSeq(guid[4]);
-            byteData << uint32(questStatus);
-            byteData.WriteByteSeq(guid[1]);
-            byteData.WriteByteSeq(guid[3]);
-            byteData.WriteByteSeq(guid[0]);
-
-            ++count;
+            _player->PlayerTalkClass->SendQuestGiverStatus(questStatus, questgiver->GetGUID());
         }
     }
-
-    data.FlushBits();
-    data.PutBits(pos, count, 21);
-    data.append(byteData);
-
-    SendPacket(&data);
 }
 
 void WorldSession::HandleQueryQuestsCompleted(WorldPacket& /*recvData*/)
