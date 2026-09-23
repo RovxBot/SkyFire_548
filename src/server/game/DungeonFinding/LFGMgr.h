@@ -421,6 +421,8 @@ namespace lfg
         void UpdateProposal(uint32 proposalId, uint64 guid, bool accept);
         /// Finds an initiating proposal awaiting this player's answer (0 if none).
         uint32 GetActiveProposalIdForPlayer(uint64 guid) const;
+        /// Read-only compatibility lookup for modules that need dungeon metadata.
+        LFGDungeonData const* GetLFGDungeonData(uint32 id) { return GetLFGDungeon(id); }
         /// Roles currently recorded for a player in an active group role check
         /// (PLAYER_ROLE_NONE if no check / not listed).
         uint8 GetRoleCheckRoles(uint64 gguid, uint64 playerGuid) const;
