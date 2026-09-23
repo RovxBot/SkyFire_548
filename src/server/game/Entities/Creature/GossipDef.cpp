@@ -375,17 +375,12 @@ void PlayerMenu::SendQuestGiverStatus(uint32 questStatus, uint64 npcGUID) const
 {
     ObjectGuid guid = npcGUID;
 
-    WorldPacket data(SMSG_QUESTGIVER_STATUS, 1 + 8 + 4);
-
-    data.WriteGuidMask(guid, 1, 7, 4, 2, 5, 3, 6, 0);
-
+    WorldPacket data(SMSG_QUESTGIVER_STATUS, 13);
+    data.WriteGuidMask(guid, 1, 5, 2, 0, 4, 3, 7, 6);
     data.FlushBits();
-
-    data.WriteGuidBytes(guid, 7);
-
+    data.WriteGuidBytes(guid, 7, 0, 4);
     data << uint32(questStatus);
-
-    data.WriteGuidBytes(guid, 4, 6, 1, 5, 2, 0, 3);
+    data.WriteGuidBytes(guid, 2, 1, 6, 3, 5);
 
     _session->SendPacket(&data);
     SF_LOG_DEBUG("network", "WORLD: Sent SMSG_QUESTGIVER_STATUS NPC Guid=%u, status=%u", GUID_LOPART(npcGUID), questStatus);
