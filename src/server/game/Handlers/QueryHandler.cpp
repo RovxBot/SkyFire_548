@@ -284,14 +284,14 @@ void WorldSession::HandleGameObjectQueryOpcode(WorldPacket& recvData)
 
     recvData >> entry;
 
-    recvData.ReadGuidMask(guid, 1, 7, 0, 3, 5, 4, 6, 2);
-    recvData.ReadGuidBytes(guid, 3, 6, 1, 2, 0, 7, 5, 4);
+    recvData.ReadGuidMask(guid, 5, 3, 6, 2, 7, 1, 0, 4);
+    recvData.ReadGuidBytes(guid, 1, 5, 3, 4, 6, 2, 7, 0);
 
     const GameObjectTemplate* info = sObjectMgr->GetGameObjectTemplate(entry);
-    uint32 entryToSend = info ? entry : 0x80000000 | entry;
 
     WorldPacket data(SMSG_GAMEOBJECT_QUERY_RESPONSE, 150);
-    data << entryToSend;
+    data.WriteBit(info != NULL);
+    data << uint32(entry);
 
     size_t pos = data.wpos();
     data << uint32(0);
@@ -329,20 +329,10 @@ void WorldSession::HandleGameObjectQueryOpcode(WorldPacket& recvData)
         data.append(info->raw.data, MAX_GAMEOBJECT_DATA);
         data << float(info->size);                          // go size
 
-        uint8 questItemCount = 0;
-        for (uint32 i = 0; i < MAX_GAMEOBJECT_QUEST_ITEMS; ++i)
-            if (info->questItems[i])
-                ++questItemCount;
+        data << uint8(MAX_GAMEOBJECT_QUEST_ITEMS);
 
-        data << questItemCount;
-        for (uint32 i = 0; i < MAX_GAMEOBJECT_QUEST_ITEMS && questItemCount > 0; ++i)
-        {
-            if (info->questItems[i])
-            {
-                data << uint32(info->questItems[i]);        // ItemId[6], quest drop
-                --questItemCount;
-            }
-        }
+        for (uint32 i = 0; i < MAX_GAMEOBJECT_QUEST_ITEMS; ++i)
+            data << uint32(info->questItems[i]);            // ItemId[6], quest drop
 
         data << int32(info->unkInt32);                      // 4.x, unknown
 
@@ -356,8 +346,6 @@ void WorldSession::HandleGameObjectQueryOpcode(WorldPacket& recvData)
         SF_LOG_DEBUG("network", "WORLD: Sent SMSG_GAMEOBJECT_QUERY_RESPONSE");
     }
 
-    data.WriteBit(info != NULL);
-    data.FlushBits();
     SendPacket(&data);
 }
 
