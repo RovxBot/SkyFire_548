@@ -184,11 +184,11 @@ void WorldSession::HandleCreatureQueryOpcode(WorldPacket& recvData)
     uint32 entry;
     recvData >> entry;
 
-    WorldPacket data(SMSG_CREATURE_QUERY_RESPONSE, 500);
-
     CreatureTemplate const* info = sObjectMgr->GetCreatureTemplate(entry);
+    uint32 entryToSend = info ? entry : 0x80000000 | entry;
 
-    data << uint32(entry);
+    WorldPacket data(SMSG_CREATURE_QUERY_RESPONSE, 128);
+    data << entryToSend;
     data.WriteBit(info != 0);                                    // Has data
 
     if (info)
@@ -209,54 +209,69 @@ void WorldSession::HandleCreatureQueryOpcode(WorldPacket& recvData)
 
         SF_LOG_DEBUG("network", "WORLD: CMSG_CREATURE_QUERY '%s' - Entry: %u.", info->Name.c_str(), entry);
 
-        data.WriteBits(SubName.length() ? SubName.length() + 1 : 0, 11);
-        data.WriteBits(MAX_CREATURE_QUEST_ITEMS, 22);        // Quest items
-        data.WriteBits(0, 11);
+        data.WriteBit(info->RacialLeader);
+        data.WriteBits(info->IconName.size() ? info->IconName.size() + 1 : 0, 6);
 
         for (int i = 0; i < 8; i++)
         {
-            if (i == 0)
+            if (i == 1)
                 data.WriteBits(Name.length() + 1, 11);
             else
                 data.WriteBits(0, 11);                       // Name2, ..., name8
         }
 
-        data.WriteBit(info->RacialLeader);
-        data.WriteBits(info->IconName.length() + 1, 6);
+        uint8 itemCount = 0;
+        for (uint32 i = 0; i < MAX_CREATURE_QUEST_ITEMS; ++i)
+            if (info->questItems[i])
+                ++itemCount;
+
+        data.WriteBits(itemCount, 22);
+        data.WriteBits(SubName.length() ? SubName.length() + 1 : 0, 11);
+        data.WriteBits(0, 11);
         data.FlushBits();
 
-        data << uint32(info->KillCredit[0]);                  // New in 3.1, kill credit
-        data << uint32(info->Modelid4);                       // Modelid4
+        data << float(info->ModMana);                         // Dmg/mana modifier
+        data << Name;                                         // Name
+        data << float(info->ModHealth);                       // Dmg/hp modifier
+        data << uint32(info->KillCredit[1]);                  // New in 3.1, kill credit
         data << uint32(info->Modelid2);                       // Modelid2
-        data << uint32(info->expansion);                      // Expansion Required
+
+        for (uint32 i = 0; i < MAX_CREATURE_QUEST_ITEMS && itemCount > 0; ++i)
+        {
+            if (info->questItems[i])
+            {
+                data << uint32(info->questItems[i]);          // ItemId[6], quest drop
+                --itemCount;
+            }
+        }
+
         data << uint32(info->type);                           // CreatureType.dbc
-        data << float(info->ModHealth);                       // Hp modifier
+
+        if (!info->IconName.empty())
+            data << info->IconName;                           // Icon name
+
         data << uint32(info->type_flags);                     // Flags
         data << uint32(info->type_flags2);                    // Flags2
-        data << uint32(info->rank);                           // Creature Rank (elite, boss, etc)
+        data << uint32(info->KillCredit[0]);                  // New in 3.1, kill credit
+        data << uint32(info->family);                         // CreatureFamily.dbc
         data << uint32(info->movementId);                     // CreatureMovementInfo.dbc
-        data << Name;
-
-        if (SubName != "")
-            data << SubName;                                // Subname
-
+        data << uint32(info->expansionUnknown);               // Unknown meaning
         data << uint32(info->Modelid1);                       // Modelid1
         data << uint32(info->Modelid3);                       // Modelid3
+        data << uint32(info->rank);                           // Creature Rank (elite, boss, etc)
 
-        if (info->IconName != "")
-            data << info->IconName;                           // "Directions" for guard, string for Icons 2.3.0
+        if (!SubName.empty())
+            data << SubName;                                // Subname
 
-        for (uint32 i = 0; i < MAX_CREATURE_QUEST_ITEMS; ++i)
-            data << uint32(info->questItems[i]);              // ItemId[6], quest drop
-
-        data << uint32(info->KillCredit[1]);                  // New in 3.1, kill credit
-        data << float(info->ModMana);                         // Mana modifier
-        data << uint32(info->family);                         // CreatureFamily.dbc
+        data << uint32(info->Modelid4);                       // Modelid4
 
         SF_LOG_DEBUG("network", "WORLD: Sent SMSG_CREATURE_QUERY_RESPONSE");
     }
     else
+    {
+        data.FlushBits();
         SF_LOG_DEBUG("network", "WORLD: CMSG_CREATURE_QUERY - NO CREATURE INFO! (ENTRY: %u)", entry);
+    }
 
     SendPacket(&data);
 }
